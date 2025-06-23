@@ -7,7 +7,7 @@ from astrbot.api.star import Context, Star, register
     "插件测试小助手",
     "LumineStory",
     "一个通过指令热更新其他插件的开发辅助工具。",
-    "1.0.0",
+    "1.0.1", # 版本升级，标记修复
     "https://github.com/oyxning/astrbot_plugin_test_helper"
 )
 class PluginTestHelper(Star):
@@ -22,7 +22,7 @@ class PluginTestHelper(Star):
         从配置的GitHub仓库地址热更新插件。
         """
         target_repo_url = self.config.get("target_repo_url")
-        proxy = self.config.get("proxy") or None # 如果为空字符串则设为None
+        proxy = self.config.get("proxy") or None
 
         if not target_repo_url or "your-name/your-plugin-repo" in target_repo_url:
             yield event.plain_result(
@@ -34,11 +34,17 @@ class PluginTestHelper(Star):
         yield event.plain_result(f"🚀 **收到更新指令!**\n正在从以下地址拉取更新:\n{target_repo_url}")
 
         try:
-            # 获取核心的插件管理器
-            plugin_manager = self.context.plugin_manager
+            # ！！！核心修复：获取插件管理器的正确方式
+            # StarManager 是实际负责插件安装和管理的核心服务
+            plugin_manager = self.context.star_manager
             
+            # 检查获取到的对象是否正确
+            if not hasattr(plugin_manager, 'install_plugin'):
+                logger.error("意图路由器：无法在 self.context.star_manager 上找到 install_plugin 方法。")
+                yield event.plain_result("❌ **更新失败!**\n内部错误：无法访问插件安装服务。")
+                return
+
             # 调用内置的安装/更新方法
-            # 这个方法会处理下载、解压、覆盖和重载的全过程
             await plugin_manager.install_plugin(repo_url=target_repo_url, proxy=proxy)
             
             logger.info(f"插件 {target_repo_url} 更新成功。")
