@@ -1,0 +1,14 @@
+{
+    "target_repo_url": {
+        "type": "string",
+        "title": "目标插件的GitHub仓库地址",
+        "description": "请在此处填入你正在开发或测试的插件的完整GitHub仓库URL。",
+        "default": "https://github.com/your-name/your-plugin-repo"
+    },
+    "proxy": {
+        "type": "string",
+        "title": "网络代理 (可选)",
+        "description": "如果你的服务器访问GitHub需要代理，请在此处填写，例如 http://127.0.0.1:7890",
+        "default": ""
+    }
+}

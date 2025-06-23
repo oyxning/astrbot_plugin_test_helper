@@ -1,24 +1,56 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+import asyncio
+from astrbot.api import AstrBotConfig, logger
+from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
-    def __init__(self, context: Context):
+@register(
+    "插件测试小助手",
+    "LumineStory",
+    "一个通过指令热更新其他插件的开发辅助工具。",
+    "1.0.0",
+    "https://github.com/oyxning/astrbot_plugin_test_helper"
+)
+class PluginTestHelper(Star):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        self.config = config
 
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
-    
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
+    @filter.command("测试仓库更新", alias={"update_test_repo"})
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    async def update_plugin_from_repo(self, event: AstrMessageEvent):
+        """
+        从配置的GitHub仓库地址热更新插件。
+        """
+        target_repo_url = self.config.get("target_repo_url")
+        proxy = self.config.get("proxy") or None # 如果为空字符串则设为None
+
+        if not target_repo_url or "your-name/your-plugin-repo" in target_repo_url:
+            yield event.plain_result(
+                "❌ **目标仓库未配置!**\n"
+                "请先前往本插件的配置页面，填入你想要更新的插件的GitHub仓库地址。"
+            )
+            return
+
+        yield event.plain_result(f"🚀 **收到更新指令!**\n正在从以下地址拉取更新:\n{target_repo_url}")
+
+        try:
+            # 获取核心的插件管理器
+            plugin_manager = self.context.plugin_manager
+            
+            # 调用内置的安装/更新方法
+            # 这个方法会处理下载、解压、覆盖和重载的全过程
+            await plugin_manager.install_plugin(repo_url=target_repo_url, proxy=proxy)
+            
+            logger.info(f"插件 {target_repo_url} 更新成功。")
+            yield event.plain_result("✅ **插件更新成功！**\n目标插件已刷新为最新版本。")
+
+        except Exception as e:
+            logger.error(f"通过指令更新插件 {target_repo_url} 时发生错误: {e}", exc_info=True)
+            yield event.plain_result(
+                f"❌ **插件更新失败!**\n"
+                f"错误信息: {e}\n"
+                "请检查仓库地址是否正确，以及服务器网络是否能够访问GitHub。"
+            )
 
     async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+        logger.info("插件测试小助手已终止。")
